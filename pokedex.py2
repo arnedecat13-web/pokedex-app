@@ -1,0 +1,130 @@
+import streamlit as st
+import requests
+
+# Zorg dat de zoekgeschiedenis wordt onthouden
+if "geschiedenis" not in st.session_state:
+    st.session_state.geschiedenis = []
+
+st.set_page_config(page_title="Pokemon Ultimate", page_icon="⚡", layout="wide")
+st.title("⚡ Pokémon Ultimate Pokédex")
+
+# Maak twee tabbladen aan
+tab1, tab2 = st.tabs(["🔍 Pokémon Zoeken", "🌍 Regio's Verkennen"])
+
+# ==========================================
+# TABBLAD 1: ZOEKEN & GESCHIEDENIS
+# ==========================================
+with tab1:
+    col_zoek, col_geschiedenis = st.columns([2, 1])
+
+    with col_zoek:
+        st.write("### Zoek een specifieke Pokémon")
+        naam = st.text_input("Naam van Pokémon (bijv. pikachu, charizard-mega-x)", "pikachu").lower().strip()
+
+        if st.button("Zoek Pokémon"):
+            # Voeg toe aan geschiedenis als hij er nog niet in staat
+            if naam and naam not in st.session_state.geschiedenis:
+                st.session_state.geschiedenis.insert(0, naam) # Zet hem bovenaan
+
+            url = f"https://pokeapi.co/api/v2/pokemon/{naam}"
+            try:
+                response = requests.get(url)
+                if response.status_code != 200:
+                    st.error("Pokémon niet gevonden. Probeer een andere naam!")
+                else:
+                    data = response.json()
+                    pokemon_naam = data["name"].upper()
+                    artwork = data["sprites"]["other"]["official-artwork"]["front_default"]
+                    
+                    types = [t["type"]["name"] for t in data["types"]]
+                    stats = {stat["stat"]["name"]: stat["base_stat"] for stat in data["stats"]}
+
+                    hp = stats.get("hp", 0)
+                    attack = stats.get("attack", 0)
+                    defense = stats.get("defense", 0)
+                    special_attack = stats.get("special-attack", 0)
+                    special_defense = stats.get("special-defense", 0)
+                    speed = stats.get("speed", 0)
+
+                    # Hoogte en gewicht berekenen (API geeft decimeters en hectogrammen)
+                    hoogte_m = data['height'] / 10
+                    gewicht_kg = data['weight'] / 10
+
+                    if "-mega" in naam:
+                        st.warning("🧬 MEGA EVOLUTIE")
+                    elif "-gmax" in naam:
+                        st.error("💥 GIGANTAMAX")
+                    else:
+                        st.success("✨ Normale Pokémon")
+
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if artwork:
+                            st.image(artwork, width=300)
+                    with c2:
+                        st.header(pokemon_naam)
+                        st.write(f"**Type:** {', '.join(types)}")
+                        st.write(f"📏 **Hoogte:** {hoogte_m} meter")
+                        st.write(f"⚖️ **Gewicht:** {gewicht_kg} kg")
+                        
+                        st.write("### Stats")
+                        st.write(f"❤️ HP: {hp}")
+                        st.progress(hp/255)
+                        st.write(f"⚔️ Attack: {attack}")
+                        st.progress(attack/255)
+                        st.write(f"🛡️ Defense: {defense}")
+                        st.progress(defense/255)
+
+            except Exception as e:
+                st.error(f"Fout: {e}")
+
+    # Laat de geschiedenis zien in de rechterkolom
+    with col_geschiedenis:
+        st.write("### 📜 Geschiedenis")
+        if len(st.session_state.geschiedenis) == 0:
+            st.info("Je hebt nog niks gezocht.")
+        else:
+            for zoekopdracht in st.session_state.geschiedenis[:10]: # Laat laatste 10 zien
+                st.write(f"✅ {zoekopdracht.capitalize()}")
+
+# ==========================================
+# TABBLAD 2: REGIO'S VERKENNEN
+# ==========================================
+with tab2:
+    st.write("### Ontdek alle Pokémon per Regio")
+    st.write("Kies een regio uit de Pokémon-wereld en bekijk welke Pokémon daar vandaan komen!")
+
+    # Woordenboek met regio's en hun generatie-nummer
+    regios = {
+        "Kanto (Generatie 1)": 1,
+        "Johto (Generatie 2)": 2,
+        "Hoenn (Generatie 3)": 3,
+        "Sinnoh (Generatie 4)": 4,
+        "Unova (Generatie 5)": 5,
+        "Kalos (Generatie 6)": 6,
+        "Alola (Generatie 7)": 7,
+        "Galar (Generatie 8)": 8,
+        "Paldea (Generatie 9)": 9
+    }
+    
+    gekozen_regio = st.selectbox("Kies een regio:", list(regios.keys()))
+    
+    if st.button("Laad Regio Pokédex"):
+        gen_id = regios[gekozen_regio]
+        url = f"https://pokeapi.co/api/v2/generation/{gen_id}/"
+        
+        with st.spinner("Pokémon aan het verzamelen..."):
+            try:
+                res = requests.get(url).json()
+                species = res["pokemon_species"]
+                st.success(f"Er zijn {len(species)} Pokémon ontdekt in {gekozen_regio}!")
+                
+                # Pak alle namen en zet ze op alfabetische volgorde
+                namenlijst = [s["name"].capitalize() for s in species]
+                namenlijst.sort()
+                
+                # Print ze netjes uit
+                st.write(", ".join(namenlijst))
+                
+            except Exception as e:
+                st.error("Kon de regio niet laden. Probeer het later nog eens.")
