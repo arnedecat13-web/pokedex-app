@@ -1,0 +1,124 @@
+import streamlit as st
+import requests
+
+st.set_page_config(
+    page_title="Pokemon Ultimate",
+    page_icon="⚡"
+)
+
+st.title("⚡ Pokémon Ultimate Pokédex")
+
+st.write("""
+Deze Pokédex ondersteunt:
+
+✅ Normale Pokémon  
+✅ Mega Evoluties  
+✅ Gigantamax  
+✅ HP  
+✅ Attack  
+✅ Defense  
+✅ Special Attack  
+✅ Special Defense  
+✅ Speed  
+✅ Hoogte  
+✅ Gewicht  
+""")
+
+st.info("""
+Voorbeelden:
+
+pikachu
+charizard
+lucario-mega
+charizard-mega-x
+charizard-mega-y
+gengar-gmax
+pikachu-gmax
+""")
+
+naam = st.text_input(
+    "Naam van Pokémon",
+    "pikachu"
+).lower().strip()
+
+if st.button("Zoek Pokémon"):
+
+    url = f"https://pokeapi.co/api/v2/pokemon/{naam}"
+
+    try:
+
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            st.error("Pokémon niet gevonden.")
+            st.stop()
+
+        data = response.json()
+
+        pokemon_naam = data["name"].upper()
+
+        artwork = data["sprites"]["other"]["official-artwork"]["front_default"]
+
+        types = []
+
+        for t in data["types"]:
+            types.append(t["type"]["name"])
+
+        stats = {}
+
+        for stat in data["stats"]:
+            stats[stat["stat"]["name"]] = stat["base_stat"]
+
+        hp = stats.get("hp", 0)
+        attack = stats.get("attack", 0)
+        defense = stats.get("defense", 0)
+        special_attack = stats.get("special-attack", 0)
+        special_defense = stats.get("special-defense", 0)
+        speed = stats.get("speed", 0)
+
+        if "-mega" in naam:
+            st.warning("🧬 MEGA EVOLUTIE")
+        elif "-gmax" in naam:
+            st.error("💥 GIGANTAMAX")
+        else:
+            st.success("✨ Normale Pokémon")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if artwork:
+                st.image(artwork, width=300)
+
+        with col2:
+
+            st.header(pokemon_naam)
+
+            st.write("### Type")
+            st.write(", ".join(types))
+
+            st.write("### Informatie")
+            st.write(f"📏 Hoogte: {data['height']/10} meter")
+            st.write(f"⚖️ Gewicht: {data['weight']/10} kg")
+
+            st.write("### Stats")
+
+            st.write(f"❤️ HP: {hp}")
+            st.progress(hp/255)
+
+            st.write(f"⚔️ Attack: {attack}")
+            st.progress(attack/255)
+
+            st.write(f"🛡️ Defense: {defense}")
+            st.progress(defense/255)
+
+            st.write(f"✨ Special Attack: {special_attack}")
+            st.progress(special_attack/255)
+
+            st.write(f"🔰 Special Defense: {special_defense}")
+            st.progress(special_defense/255)
+
+            st.write(f"💨 Speed: {speed}")
+            st.progress(speed/255)
+
+    except Exception as e:
+        st.error(f"Fout: {e}")
